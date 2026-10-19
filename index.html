@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="법과목 모의고사" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <title>정보보호관리 법과목 모의고사 (418문항 순회)</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 상단 고정 헤더 -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-badge">5급 정보보호관리</span>
+        <h1 class="brand-title">법과목 모의고사</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btnInstallPwa" class="btn btn-outline btn-sm hidden" title="홈 화면/기기에 앱으로 설치">
+          📲 앱 설치
+        </button>
+        <button id="btnSyncModal" class="btn btn-ghost btn-sm" title="PC와 스마트폰 진행 상태 연동">
+          <span id="syncDot" class="sync-dot offline"></span>
+          <span id="syncLabel">기기 연동</span>
+        </button>
+        <button id="btnHistoryModal" class="btn btn-ghost btn-sm" title="출제 완료 문항 이력 및 초기화">
+          📋 순회 이력
+        </button>
+        <button id="btnThemeToggle" class="btn btn-icon btn-ghost" title="다크/라이트 모드 전환" aria-label="테마 전환">
+          🌙
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- 순회 진행률 & 출제 컨트롤 패널 -->
+    <section class="control-panel card">
+      <div class="progress-grid">
+        <!-- 선택 범위 순회 진행률 -->
+        <div class="progress-box">
+          <div class="progress-header">
+            <span class="progress-title">
+              🎯 선택 범위 순회 진행률
+              <span id="cycleBadge" class="badge badge-accent">1회독</span>
+            </span>
+            <span id="scopeProgressText" class="progress-stats">0 / 418문항 완료 (미출제 418)</span>
+          </div>
+          <div class="progress-bar-track">
+            <div id="scopeProgressBar" class="progress-bar-fill" style="width: 0%"></div>
+          </div>
+          <div id="activeScopeSummary" class="scope-summary-text">
+            현재 범위: 4개 법률 전체 (모든 장·절, 418문항)
+          </div>
+        </div>
+
+        <!-- 전체 418문항 기준 누적 진행률 -->
+        <div class="progress-box progress-box-sub">
+          <div class="progress-header">
+            <span class="progress-title">📊 전체 문제은행 누적</span>
+            <span id="totalProgressText" class="progress-stats">0 / 418문항 (0.0%)</span>
+          </div>
+          <div class="progress-bar-track track-sm">
+            <div id="totalProgressBar" class="progress-bar-fill fill-secondary" style="width: 0%"></div>
+          </div>
+          <div id="remainingRoundsText" class="scope-summary-text">
+            예상 남은 회차: 약 76회 (회당 5~6문항 기준)
+          </div>
+        </div>
+      </div>
+
+      <div class="control-actions-row">
+        <div class="control-left">
+          <button id="btnScopeModal" class="btn btn-outline">
+            📚 출제 범위 설정 <span id="scopeFilterBadge" class="badge badge-dark">전체 418</span>
+          </button>
+          <div class="count-selector" role="group" aria-label="출제 문항 수 설정">
+            <label class="count-label" for="selectCountMode">회당 문항 수</label>
+            <select id="selectCountMode" class="select-input">
+              <option value="5-6" selected>5~6문항 랜덤</option>
+              <option value="5">5문항 고정</option>
+              <option value="6">6문항 고정</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-right">
+          <button id="btnRedrawExam" class="btn btn-outline" title="현재 시험지 문항을 미출제 상태로 되돌리고 새로 뽑습니다">
+            🔄 다시 뽑기
+          </button>
+          <button id="btnCompleteAndNext" class="btn btn-primary btn-lg">
+            ✅ 완료 &amp; 다음 모의고사 출제
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 현재 모의고사 상태 바 (타이머, 자가채점 총점, 일괄 펼치기, 문항 점프) -->
+    <section id="examToolbar" class="exam-toolbar card hidden">
+      <div class="toolbar-top">
+        <div class="exam-meta-info">
+          <span id="examRoundBadge" class="exam-round-badge">제1회 모의고사</span>
+          <span id="examMetaText" class="exam-meta-text">대문항 5개 · 소문항 15개 · 총 140점</span>
+        </div>
+
+        <div class="toolbar-controls">
+          <div class="score-pill" title="채점 기준 체크박스로 체크한 내 점수 합계">
+            <span>자가채점</span>
+            <strong id="examScoreText">0 / 140점 (0%)</strong>
+          </div>
+
+          <div class="timer-box">
+            <span id="timerDisplay" class="timer-display">00:00</span>
+            <button id="btnTimerToggle" class="btn btn-xs btn-ghost">▶ 시작</button>
+            <button id="btnTimerReset" class="btn btn-xs btn-ghost" title="타이머 초기화">↺</button>
+          </div>
+
+          <button id="btnToggleAllAnswers" class="btn btn-sm btn-outline">
+            👁️ 모범답안 전체 펼치기
+          </button>
+        </div>
+      </div>
+
+      <!-- 문항 빠른 이동 탭 (모바일/PC 공통) -->
+      <div id="questionNavTabs" class="question-nav-tabs" role="tablist"></div>
+    </section>
+
+    <!-- 시험지 문항 리스트 영역 -->
+    <section id="examContainer" class="exam-container">
+      <div class="loading-state card">
+        <p>문제은행 데이터를 불러오는 중입니다...</p>
+      </div>
+    </section>
+
+    <!-- 하단 완료 액션 바 -->
+    <section id="examBottomBar" class="exam-bottom-bar card hidden">
+      <div class="bottom-bar-inner">
+        <div class="bottom-bar-info">
+          <span id="bottomSummaryText">이번 회차 5문항 학습을 마치셨나요?</span>
+          <small>완료 버튼을 누르면 현재 문항들이 출제 완료(순회 완료)로 기록되고 다음 미출제 5~6문항이 출제됩니다.</small>
+        </div>
+        <div class="bottom-bar-buttons">
+          <button id="btnScrollTop" class="btn btn-outline">↑ 맨 위로</button>
+          <button id="btnCompleteBottom" class="btn btn-primary btn-lg">
+            ✅ 완료 &amp; 다음 모의고사 출제
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 모달 1: 출제 범위 설정 (법률 > 장 > 절 트리) -->
+  <div id="modalScope" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="dialog" aria-labelledby="modalScopeTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalScopeTitle" class="modal-title">📚 출제 범위 설정 (법률 · 장 · 절)</h2>
+          <p class="modal-subtitle">원하는 법률·장·절을 선택하면 해당 범위 안에서만 빠짐없이 비복원 순회합니다.</p>
+        </div>
+        <button class="btn btn-icon btn-ghost modal-close" data-close="modalScope">✕</button>
+      </div>
+
+      <div class="modal-toolbar">
+        <div class="quick-scope-btns">
+          <button type="button" class="btn btn-xs btn-outline" data-quick-scope="ALL">전체 선택 (418)</button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-scope="개인정보 보호법">개보법만 (247)</button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-scope="정보통신망 이용촉진 및 정보보호 등에 관한 법률">망법만 (115)</button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-scope="정보통신기반 보호법">기반보호법만 (30)</button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-scope="클라우드컴퓨팅 발전 및 이용자 보호에 관한 법률">클라우드법만 (26)</button>
+          <button type="button" class="btn btn-xs btn-ghost" data-quick-scope="NONE">전체 해제</button>
+        </div>
+        <div id="modalScopeSelectionStats" class="modal-selection-stats">
+          선택된 문항: 418개 (미출제 418개)
+        </div>
+      </div>
+
+      <div id="scopeTreeContainer" class="modal-body scope-tree-container"></div>
+
+      <div class="modal-footer">
+        <label class="checkbox-inline">
+          <input type="checkbox" id="chkRedrawOnScopeApply" checked />
+          <span>범위 적용 시 현재 시험지를 새 범위로 즉시 다시 뽑기 (현재 시험지는 미출제 유지)</span>
+        </label>
+        <div class="modal-footer-btns">
+          <button type="button" class="btn btn-ghost" data-close="modalScope">취소</button>
+          <button type="button" id="btnApplyScope" class="btn btn-primary">적용하기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 2: 순회 이력 및 초기화 -->
+  <div id="modalHistory" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="dialog" aria-labelledby="modalHistoryTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalHistoryTitle" class="modal-title">📋 순회 진행 현황 및 출제 완료 이력</h2>
+          <p class="modal-subtitle">이미 출제되어 순회 완료된 문항을 확인하거나 다시 미출제 상태로 되돌릴 수 있습니다.</p>
+        </div>
+        <button class="btn btn-icon btn-ghost modal-close" data-close="modalHistory">✕</button>
+      </div>
+
+      <div class="modal-toolbar history-toolbar">
+        <div id="historySummaryStats" class="history-summary-stats"></div>
+        <div class="history-reset-btns">
+          <button type="button" id="btnResetScopeSeen" class="btn btn-xs btn-outline btn-danger-outline">
+            선택 범위만 순회 초기화
+          </button>
+          <button type="button" id="btnResetAllSeen" class="btn btn-xs btn-danger">
+            전체 418문항 순회 초기화
+          </button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="tabs-bar">
+          <button type="button" class="tab-btn active" data-history-tab="rounds">회차별 기록</button>
+          <button type="button" class="tab-btn" data-history-tab="seen">출제 완료 문항 목록</button>
+          <button type="button" class="tab-btn" data-history-tab="unseen">미출제 문항 목록</button>
+        </div>
+        <div id="historyTabContent" class="history-tab-content"></div>
+      </div>
+
+      <div class="modal-footer">
+        <div class="backup-btns">
+          <button type="button" id="btnExportState" class="btn btn-sm btn-outline">💾 진행 상태 파일 백업(JSON)</button>
+          <label class="btn btn-sm btn-outline file-label">
+            📂 백업 파일 불러오기
+            <input type="file" id="inputImportState" accept=".json" class="hidden" />
+          </label>
+        </div>
+        <button type="button" class="btn btn-primary" data-close="modalHistory">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 모달 3: PC ↔ 스마트폰 기기 연동 (GitHub Secret Gist Sync & QR) -->
+  <div id="modalSync" class="modal-backdrop hidden" aria-hidden="true">
+    <div class="modal-dialog" role="dialog" aria-labelledby="modalSyncTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="modalSyncTitle" class="modal-title">🔄 PC ↔ 스마트폰 실시간 연동</h2>
+          <p class="modal-subtitle">외부에서 스마트폰으로 접속해도 PC에서 풀던 순회 진행 상태와 시험지가 그대로 이어집니다.</p>
+        </div>
+        <button class="btn btn-icon btn-ghost modal-close" data-close="modalSync">✕</button>
+      </div>
+
+      <div class="modal-body sync-modal-body">
+        <div id="syncStatusBanner" class="sync-status-banner"></div>
+
+        <!-- 스마트폰 간편 연결 QR & 1회용 링크 영역 -->
+        <div id="qrPairSection" class="qr-pair-section hidden">
+          <h3 class="section-subtitle">📱 스마트폰 3초 연동 (QR 스캔 또는 링크 복사)</h3>
+          <p class="help-text">
+            아래 QR 코드를 스마트폰 카메라로 스캔하거나, <strong>연동 링크 복사</strong> 후 카카오톡 나에게 보내기 등으로 폰에서 한 번만 열면 자동으로 연동됩니다.
+          </p>
+          <div class="qr-box">
+            <img id="qrCodeImg" alt="스마트폰 연동 QR 코드" class="qr-img" />
+          </div>
+          <div class="pair-link-actions">
+            <button type="button" id="btnCopyPairLink" class="btn btn-sm btn-primary">🔗 스마트폰 연동 링크 복사</button>
+            <button type="button" id="btnForceSyncNow" class="btn btn-sm btn-outline">⚡ 지금 즉시 동기화</button>
+          </div>
+        </div>
+
+        <details class="sync-config-details" id="syncConfigDetails">
+          <summary>⚙️ 클라우드 동기화 키 직접 설정 / 변경</summary>
+          <div class="form-group">
+            <label for="inputGistId">GitHub Gist ID</label>
+            <input type="text" id="inputGistId" class="text-input" placeholder="예: a1b2c3d4e5f6..." autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label for="inputGithubToken">GitHub Personal Access Token (gist 권한)</label>
+            <input type="password" id="inputGithubToken" class="text-input" placeholder="ghp_... 또는 gho_..." autocomplete="off" />
+            <small class="help-text">입력한 정보는 현재 브라우저(localStorage)에만 저장되며 공개 저장소에 절대 노출되지 않습니다.</small>
+          </div>
+          <div class="sync-config-btns">
+            <button type="button" id="btnSaveSyncConfig" class="btn btn-sm btn-primary">연동 저장 및 연결 테스트</button>
+            <button type="button" id="btnDisconnectSync" class="btn btn-sm btn-ghost btn-danger-outline">연동 해제</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close="modalSync">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 토스트 알림 -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script src="vendor/qrcode.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
